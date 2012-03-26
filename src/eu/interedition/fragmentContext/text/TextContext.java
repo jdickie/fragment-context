@@ -10,6 +10,7 @@ import java.math.*;
 
 import de.tud.kom.stringmatching.shinglecloud.ShingleCloud;
 import de.tud.kom.stringutils.tokenization.CharacterTokenizer;
+import de.tud.kom.stringmatching.gst.*;
 import eu.interedition.fragmentContext.Constraint;
 import eu.interedition.fragmentContext.Context;
 import eu.interedition.fragmentContext.Primary;
@@ -122,7 +123,61 @@ public class TextContext implements Context {
 		return Arrays.equals(digest, this.checkSum);
 
 	}
-
+	
+	/*
+	 * createGST and gstMATCH
+	 * 
+	 * Methods to implement the GST-TILING methodology of matching 
+	 * strings. 
+	 */
+	private GST createGST(int needleLength, String haystack) {
+		GST gst = new GST(haystack);
+		// Needs to be at least a third of the needle length to
+		// count as a match
+		gst.setMinimumTileLength((int)Math.ceil(needleLength/3));
+		
+		return gst;
+	}
+	
+	private TextConstraint gstMatch(String primaryContent, TextConstraint originalConstraint) throws NoMatchFoundException {
+		GST g = createGST(this.beforeContext.length(), primaryContent);
+		
+		g.match(this.beforeContext);
+		if(g.getTiles().size() == 0)
+			throw new Context.NoMatchFoundException();
+		int startMatch = -1;
+		int maxMatchIndex = originalConstraint.getStartPos() - (this.beforeContext.length() + (int)Math.ceil((this.beforeContext.length()/3)));
+		int minMatchIndex = originalConstraint.getStartPos() - (int)Math.ceil(Math.ceil(this.beforeContext.length()/3));
+		int i;
+		// go through each matched TILE and see
+//		if the match is close to our context
+		for (GSTTile item: g.getTiles()) {
+			i = item.getStart();
+			if(i > startMatch && i > minMatchIndex && i <= maxMatchIndex) {
+				startMatch = item.getStart();
+			}
+		}
+		// Check if no matches found
+		if(startMatch < 1) 
+			throw new Context.NoMatchFoundException();
+		
+		minMatchIndex = originalConstraint.getEndPos() + (this.afterContext.length() + (int)Math.ceil((this.beforeContext.length()/3)));
+		maxMatchIndex = originalConstraint.getEndPos() + this.afterContext.length();
+		int endMatch = -1;
+		
+		for (GSTTile item: g.getTiles()) {
+			i = item.getStart() + item.getLength();
+			if(i > endMatch && i > minMatchIndex && i <= maxMatchIndex) {
+				endMatch = item.getStart();
+			}
+		}
+		
+		if(endMatch < 1)
+			throw new Context.NoMatchFoundException();
+		
+		return new TextConstraint(startMatch, endMatch);
+	}
+	
 	private ShingleCloud createSC(int needleLength, String hayStack) {
 		
 		ShingleCloud sc = new ShingleCloud(hayStack);
@@ -138,7 +193,7 @@ public class TextContext implements Context {
 	}
 	
 	private TextConstraint shingleCloudMatch(String primaryContent) throws NoMatchFoundException {
-		
+		// Using the TILING method
 		ShingleCloud sc = createSC(this.beforeContext.length(), primaryContent);
 
 		//find the text before the annotation
@@ -199,6 +254,8 @@ public class TextContext implements Context {
 						(originalConstraint.getEndPos() - this.endSel.length()),
 						primaryContent);
 				
+				positionTotal = beginTotal + afterTotal;
+				
 				if(Math.abs(positionTotal - originalPosTotal) > 5) {
 					throw new Context.NoMatchFoundException();
 				}
@@ -233,7 +290,17 @@ public class TextContext implements Context {
 		
 		return index;
 	}
-
+	
+	private double fuzzyMatch(String context, int oldIndex, String content) {
+		double percent = 0.0;
+		String fuzzyString = context;
+		
+		while(findClosestIndexOf(context, oldIndex, content) == 0) {
+			
+		}
+			
+		return percent;
+	}
 	
 	@Override
 	public Constraint match(Primary primary, TextConstraint originalConstraint) throws Context.NoMatchFoundException {
