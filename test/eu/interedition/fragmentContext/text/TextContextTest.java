@@ -32,7 +32,9 @@ public class TextContextTest extends TestCase {
 
 	@Test
 	public void testContextMethods() {
-		fail("Not yet implemented");
+//		Test whether After and Before context are as expected
+		String bf = 
+		String af
 	}
 
 }
